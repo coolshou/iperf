@@ -64,6 +64,14 @@
 #include "iperf_time.h"
 
 #if defined(HAVE_SSL)
+#if defined(_WIN32) || defined(__CYGWIN__)
+// Name clashes between windows.h and openssl
+#undef X509_NAME
+#undef X509_CERT_PAIR
+#undef X509_EXTENSIONS
+#undef OCSP_REQUEST
+#undef OCSP_RESPONSE
+#endif
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #endif // HAVE_SSL
@@ -168,7 +176,7 @@ struct iperf_stream
     int       socket;
     int       id;
     int       sender;
-	/* XXX: is settings just a pointer to the same struct in iperf_test? if not, 
+	/* XXX: is settings just a pointer to the same struct in iperf_test? if not,
 		should it be? */
     struct iperf_settings *settings;	/* pointer to structure settings */
 
@@ -305,7 +313,7 @@ struct iperf_test
     fd_set    read_set;                         /* set of read sockets */
     fd_set    write_set;                        /* set of write sockets */
 
-    /* Interval related members */ 
+    /* Interval related members */
     int       omitting;
     double    stats_interval;
     double    reporter_interval;
