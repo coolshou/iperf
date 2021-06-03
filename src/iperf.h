@@ -413,7 +413,7 @@ struct iperf_test
 #define MIN_INTERVAL 0.1
 #define MAX_INTERVAL 60.0
 //#define MAX_TIME 86400
-#define MAX_TIME 8640000 //jimmy, 100day
+#define MAX_TIME 86400*10 //jimmy, 10day
 #define MAX_BURST 1000
 #define MAX_MSS (9 * 1024)
 #define MAX_STREAMS 128
