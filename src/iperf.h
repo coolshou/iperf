@@ -39,7 +39,12 @@
 #ifndef _GNU_SOURCE
 # define _GNU_SOURCE
 #endif
+#ifdef HAVE_LINUX_TCP_H
+#include <linux/tcp.h>
+#else
 #include <netinet/tcp.h>
+#endif
+#include <net/if.h> // for IFNAMSIZ
 
 #if defined(HAVE_CPUSET_SETAFFINITY)
 #include <sys/param.h>
@@ -64,14 +69,6 @@
 #include "iperf_time.h"
 
 #if defined(HAVE_SSL)
-#if defined(_WIN32) || defined(__CYGWIN__)
-// Name clashes between windows.h and openssl
-#undef X509_NAME
-#undef X509_CERT_PAIR
-#undef X509_EXTENSIONS
-#undef OCSP_REQUEST
-#undef OCSP_RESPONSE
-#endif
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #endif // HAVE_SSL
@@ -107,6 +104,7 @@ struct iperf_interval_results
     int interval_retrans;
     int interval_sacks;
     int snd_cwnd;
+    int snd_wnd;
     TAILQ_ENTRY(iperf_interval_results) irlistentries;
     void     *custom_data;
     int rtt;
@@ -130,6 +128,7 @@ struct iperf_stream_result
     int stream_sum_rtt;
     int stream_count_rtt;
     int stream_max_snd_cwnd;
+    int stream_max_snd_wnd;
     struct iperf_time start_time;
     struct iperf_time end_time;
     struct iperf_time start_time_fixed;
@@ -160,6 +159,7 @@ struct iperf_settings
     iperf_size_t blocks;            /* number of blocks (packets) to send */
     char      unit_format;          /* -f */
     int       num_ostreams;         /* SCTP initmsg settings */
+    int       dont_fragment;        /* Whether to set IP flag Do-Not_Fragment */
 #if defined(HAVE_SSL)
     char      *authtoken;           /* Authentication token */
     char      *client_username;
@@ -167,6 +167,8 @@ struct iperf_settings
     EVP_PKEY  *client_rsa_pubkey;
 #endif // HAVE_SSL
     int	      connect_timeout;	    /* socket connection timeout, in ms */
+    int       idle_timeout;         /* server idle time timeout */
+    struct iperf_time rcv_timeout;  /* Timeout for receiving messages in active mode, in us */
 };
 
 struct iperf_test;
@@ -191,6 +193,7 @@ struct iperf_stream
     int       green_light;
     int       buffer_fd;	/* data to send, file descriptor */
     char      *buffer;		/* data to send, mmapped */
+    int       pending_size;     /* pending data to send */
     int       diskfile_fd;	/* file to send, file descriptor */
     int	      diskfile_left;	/* remaining file data on disk */
 
@@ -265,6 +268,7 @@ struct iperf_test
     char     *server_hostname;                  /* -c option */
     char     *tmp_template;
     char     *bind_address;                     /* first -B option */
+    char     *bind_dev;                         /* bind to network device */
     TAILQ_HEAD(xbind_addrhead, xbind_entry) xbind_addrs; /* all -X opts */
     int       bind_port;                        /* --cport option */
     int       server_port;
@@ -294,6 +298,7 @@ struct iperf_test
 #if defined(HAVE_SSL)
     char      *server_authorized_users;
     EVP_PKEY  *server_rsa_private_key;
+    int       server_skew_threshold;
 #endif // HAVE_SSL
 
     /* boolean variables for Options */
@@ -348,6 +353,11 @@ struct iperf_test
     iperf_size_t bitrate_limit_last_interval_index;       /* Index of the last interval traffic insrted into the cyclic array */
     int          bitrate_limit_exceeded;                  /* Set by callback routine when average data rate exceeded the server's bitrate limit */
 
+    int server_last_run_rc;                      /* Save last server run rc for next test */
+    uint server_forced_idle_restarts_count;      /* count number of forced server restarts to make sure it is not stack */
+    uint server_forced_no_msg_restarts_count;    /* count number of forced server restarts to make sure it is not stack */
+    uint server_test_number;                     /* count number of tests performed by a server */
+
     char      cookie[COOKIE_SIZE];
 //    struct iperf_stream *streams;               /* pointer to list of struct stream */
     SLIST_HEAD(slisthead, iperf_stream) streams;
@@ -380,6 +390,8 @@ struct iperf_test
 /* default settings */
 #define PORT 5201  /* default port to listen on (don't use the same port as iperf2) */
 #define uS_TO_NS 1000
+#define mS_TO_US 1000
+#define SEC_TO_mS 1000
 #define SEC_TO_US 1000000LL
 #define UDP_RATE (1024 * 1024) /* 1 Mbps */
 #define OMIT 0 /* seconds */
@@ -401,7 +413,7 @@ struct iperf_test
 #define MIN_INTERVAL 0.1
 #define MAX_INTERVAL 60.0
 //#define MAX_TIME 86400
-#define MAX_TIME 86400000  //jimmy, change to 1000 day
+#define MAX_TIME 8640000 //jimmy, 100day
 #define MAX_BURST 1000
 #define MAX_MSS (9 * 1024)
 #define MAX_STREAMS 128
