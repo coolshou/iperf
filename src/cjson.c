@@ -99,6 +99,13 @@
 #  else
 #   define PRIu64		"llu"
 #  endif
+# ifndef PRId64
+#  if sizeof(long) == 8
+#   define PRId64		"ld"
+#  else
+#   define PRId64		"lld"
+#  endif
+# endif
 # endif
 #endif
 
