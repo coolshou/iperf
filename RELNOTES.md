@@ -120,10 +120,10 @@ iperf-3.12 2022-09-30
 
   * Operation of bootstrap.sh has been fixed and simplified (#1335 /
     #1325).
-    
+
   * Flow label support / compatibility under Linux has been improved
     (#1310).
-    
+
   * Various minor memory leaks have been fixed (#1332 / #1333).
 
   * A getter/setter has been added for the bind_port parameter
