@@ -62,6 +62,7 @@
 #endif
 
 #include "cjson.h"
+#include "iperf_config.h"
 
 /* define our own boolean type */
 #ifdef true
@@ -400,7 +401,7 @@ loop_end:
     }
     else
     {
-        item->valueint = (int64_t)number;
+        item->valueint = (int)number;
     }
 
     item->type = cJSON_Number;
@@ -422,7 +423,7 @@ CJSON_PUBLIC(double) cJSON_SetNumberHelper(cJSON *object, double number)
     }
     else
     {
-        object->valueint = (int64_t)number;
+        object->valueint = (int)number;
     }
 
     return object->valuedouble = number;
@@ -483,9 +484,9 @@ static unsigned char* ensure(printbuffer * const p, size_t needed)
         return NULL;
     }
 
-    if (needed > SIZE_MAX)
+    if (needed > LLONG_MAX)
     {
-        /* sizes bigger than SIZE_MAX are currently not supported */
+        /* sizes bigger than INT_MAX are currently not supported */
         return NULL;
     }
 
@@ -500,12 +501,12 @@ static unsigned char* ensure(printbuffer * const p, size_t needed)
     }
 
     /* calculate new buffer size */
-    if (needed > (SIZE_MAX / 2))
+    if (needed > (LLONG_MAX / 2))
     {
-        /* overflow of int, use SIZE_MAX if possible */
-        if (needed <= SIZE_MAX)
+        /* overflow of int, use LLONG_MAX if possible */
+        if (needed <= LLONG_MAX)
         {
-            newsize = SIZE_MAX;
+            newsize = LLONG_MAX;
         }
         else
         {
@@ -2476,7 +2477,7 @@ CJSON_PUBLIC(cJSON *) cJSON_CreateNumber(double num)
         }
         else
         {
-            item->valueint = (int64_t)num;
+            item->valueint = (int)num;
         }
     }
 
