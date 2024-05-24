@@ -61,9 +61,7 @@
 #include <openssl/evp.h>
 #endif // HAVE_SSL
 
-#ifdef HAVE_PTHREAD
-#include <pthread.h>
-#endif // HAVE_PTHREAD
+#include "iperf_pthread.h"
 
 /*
  * Atomic types highly desired, but if not, we approximate what we need
@@ -321,6 +319,7 @@ struct iperf_test
     char      *server_authorized_users;
     EVP_PKEY  *server_rsa_private_key;
     int       server_skew_threshold;
+    int       use_pkcs1_padding;
 #endif // HAVE_SSL
 
     /* boolean variables for Options */
