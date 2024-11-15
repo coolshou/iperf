@@ -99,7 +99,7 @@ static int diskfile_send(struct iperf_stream *sp);
 static int diskfile_recv(struct iperf_stream *sp);
 static int JSON_write(int fd, cJSON *json);
 static void print_interval_results(struct iperf_test *test, struct iperf_stream *sp, cJSON *json_interval_streams);
-static cJSON *JSON_read(int fd);
+static cJSON *JSON_read(int fd, int max_size);
 static int JSONStream_Output(struct iperf_test *test, const char* event_name, cJSON* obj);
 
 
@@ -1993,10 +1993,10 @@ iperf_check_total_rate(struct iperf_test *test, iperf_size_t last_interval_bytes
 int
 iperf_send_mt(struct iperf_stream *sp)
 {
-    register int multisend, r, streams_active;
+    register int multisend, r, message_sent;
     register struct iperf_test *test = sp->test;
     struct iperf_time now;
-    int no_throttle_check;
+    int throttle_check_per_message;
 
     /* Can we do multisend mode? */
     if (test->settings->burst != 0)
@@ -2007,45 +2007,38 @@ iperf_send_mt(struct iperf_stream *sp)
         multisend = 1;	/* nope */
 
     /* Should bitrate throttle be checked for every send */
-    no_throttle_check = test->settings->rate != 0 && test->settings->burst == 0;
+    throttle_check_per_message = test->settings->rate != 0 && test->settings->burst == 0;
 
-    for (; multisend > 0; --multisend) {
-	if (no_throttle_check)
-	    iperf_time_now(&now);
-	streams_active = 0;
-	{
-	    if (sp->green_light && sp->sender) {
-                // XXX If we hit one of these ending conditions maybe
-                // want to stop even trying to send something?
-                if (multisend > 1 && test->settings->bytes != 0 && test->bytes_sent >= test->settings->bytes)
-                    break;
-                if (multisend > 1 && test->settings->blocks != 0 && test->blocks_sent >= test->settings->blocks)
-                    break;
-		if ((r = sp->snd(sp)) < 0) {
-		    if (r == NET_SOFTERROR)
-			break;
-		    i_errno = IESTREAMWRITE;
-		    return r;
-		}
-		streams_active = 1;
-		test->bytes_sent += r;
-		if (!sp->pending_size)
-		    ++test->blocks_sent;
-                if (no_throttle_check)
-		    iperf_check_throttle(sp, &now);
-	    }
-	}
-	if (!streams_active)
-	    break;
+    for (message_sent = 0; sp->green_light && multisend > 0; --multisend) {
+        // XXX If we hit one of these ending conditions maybe
+        // want to stop even trying to send something?
+        if (multisend > 1 && test->settings->bytes != 0 && test->bytes_sent >= test->settings->bytes)
+            break;
+        if (multisend > 1 && test->settings->blocks != 0 && test->blocks_sent >= test->settings->blocks)
+            break;
+        if ((r = sp->snd(sp)) < 0) {
+            if (r == NET_SOFTERROR)
+                break;
+            i_errno = IESTREAMWRITE;
+            return r;
+        }
+        test->bytes_sent += r;
+        if (!sp->pending_size)
+            ++test->blocks_sent;
+        if (throttle_check_per_message) {
+            if (message_sent == 0)
+                iperf_time_now(&now);
+            iperf_check_throttle(sp, &now);
+        }
+        message_sent = 1;
     }
 #if defined(HAVE_CLOCK_NANOSLEEP) || defined(HAVE_NANOSLEEP)
     if (!sp->green_light) { /* Should check if green ligh can be set, as pacing timer is not supported in this case */
 #else /* !HAVE_CLOCK_NANOSLEEP && !HAVE_NANOSLEEP */
-    if (!no_throttle_check) {   /* Throttle check if was not checked for each send */
+    if (!throttle_check_per_message || message_sent == 0) {   /* Throttle check if was not checked for each send */
 #endif /* HAVE_CLOCK_NANOSLEEP, HAVE_NANOSLEEP */
 	iperf_time_now(&now);
-        if (sp->sender)
-            iperf_check_throttle(sp, &now);
+        iperf_check_throttle(sp, &now);
     }
     return 0;
 }
@@ -2098,46 +2091,15 @@ iperf_init_test(struct iperf_test *test)
     return 0;
 }
 
-#if !defined(HAVE_CLOCK_NANOSLEEP) && !defined(HAVE_NANOSLEEP)
-static void
-send_timer_proc(TimerClientData client_data, struct iperf_time *nowP)
-{
-    struct iperf_stream *sp = client_data.p;
-
-    /* All we do here is set or clear the flag saying that this stream may
-    ** be sent to.  The actual sending gets done in the send proc, after
-    ** checking the flag.
-    */
-    iperf_check_throttle(sp, nowP);
-}
-#endif /* !HAVE_CLOCK_NANOSLEEP && !HAVE_NANOSLEEP) */
 
 int
 iperf_create_send_timers(struct iperf_test * test)
 {
+    // Note: No times for the multi-thread versions
     struct iperf_stream *sp;
-#if !defined(HAVE_CLOCK_NANOSLEEP) && !defined(HAVE_NANOSLEEP)
-    TimerClientData cd;
-    struct iperf_time now;
-
-    if (iperf_time_now(&now) < 0) {
-	i_errno = IEINITTEST;
-	return -1;
-    }
-#endif /* !HAVE_CLOCK_NANOSLEEP && !HAVE_NANOSLEEP) */
 
     SLIST_FOREACH(sp, &test->streams, streams) {
         sp->green_light = 1;
-#if !defined(HAVE_CLOCK_NANOSLEEP) && !defined(HAVE_NANOSLEEP)
-	if (test->settings->rate != 0 && sp->sender) {
-	    cd.p = sp;
-	    sp->send_timer = tmr_create(NULL, send_timer_proc, cd, test->settings->pacing_timer, 1);
-	    if (sp->send_timer == NULL) {
-		i_errno = IEINITTEST;
-		return -1;
-	    }
-	}
-#endif /* !HAVE_CLOCK_NANOSLEEP && !HAVE_NANOSLEEP) */
     }
     return 0;
 }
@@ -2373,7 +2335,7 @@ get_parameters(struct iperf_test *test)
     cJSON *j;
     cJSON *j_p;
 
-    j = JSON_read(test->ctrl_sck);
+    j = JSON_read(test->ctrl_sck, MAX_PARAMS_JSON_STRING);
     if (j == NULL) {
 	i_errno = IERECVPARAMS;
         r = -1;
@@ -2604,7 +2566,7 @@ get_results(struct iperf_test *test)
     int retransmits;
     struct iperf_stream *sp;
 
-    j = JSON_read(test->ctrl_sck);
+    j = JSON_read(test->ctrl_sck, 0);
     if (j == NULL) {
 	i_errno = IERECVRESULTS;
         r = -1;
@@ -2792,7 +2754,7 @@ JSON_write(int fd, cJSON *json)
 /*************************************************************/
 
 static cJSON *
-JSON_read(int fd)
+JSON_read(int fd, int max_size)
 {
     uint32_t hsize, nsize;
     size_t strsize;
@@ -2808,7 +2770,7 @@ JSON_read(int fd)
     rc = Nread(fd, (char*) &nsize, sizeof(nsize), Ptcp);
     if (rc == sizeof(nsize)) {
         hsize = ntohl(nsize);
-        if (hsize > 0 && hsize <= MAX_PARAMS_JSON_STRING) {
+        if (hsize > 0 && (max_size == 0 || hsize <= max_size)) {
 	    /* Allocate a buffer to hold the JSON */
 	    strsize = hsize + 1;              /* +1 for trailing NULL */
 	    if (strsize) {
@@ -4319,6 +4281,7 @@ iperf_print_results(struct iperf_test *test)
                 }
                 if (test->server_output_text) {
                     iperf_printf(test, "\nServer output:\n%s\n", test->server_output_text);
+	            free(test->server_output_text);
                     test->server_output_text = NULL;
                 }
             }
