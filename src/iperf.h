@@ -193,6 +193,7 @@ struct iperf_stream
     struct iperf_test* test;
 
     pthread_t thr;
+    int thread_created;
     int       done;
 
     /* configurable members */
@@ -450,6 +451,7 @@ struct iperf_test
 #define MAX_INTERVAL 60.0
 //#define MAX_TIME 86400
 #define MAX_TIME 864000 //jimmy, 10day
+#define MAX_OMIT_TIME 600
 #define MAX_BURST 1000
 #define MAX_MSS (9 * 1024)
 #define MAX_STREAMS 128
