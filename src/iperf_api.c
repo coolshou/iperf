@@ -2159,6 +2159,16 @@ iperf_exchange_parameters(struct iperf_test *test)
         if (get_parameters(test) < 0)
             return -1;
 
+        // Check spcific conditions required for UDP under Windows as parallel streams
+        // using the same port numebr is not supported.
+#if defined(WINDOWS_ANY)
+    if (test->bidirectional){
+        test->num_server_ports = test->num_streams *2;
+    }else{
+        test->num_server_ports = test->num_streams;
+    }
+#endif /* WINDOWS_ANY */
+
 #if defined(HAVE_SSL)
         if (test_is_authorized(test) < 0){
             if (iperf_set_send_state(test, SERVER_ERROR) != 0)
@@ -2987,6 +2997,8 @@ iperf_defaults(struct iperf_test *testp)
     testp->congestion_used = NULL;
     testp->remote_congestion_used = NULL;
     testp->server_port = PORT;
+    testp->num_server_ports = 1;
+    testp->server_udp_streams_accepted = 0;
     testp->ctrl_sck = -1;
     testp->listener = -1;
     testp->prot_listener = -1;
@@ -3269,6 +3281,7 @@ iperf_reset_test(struct iperf_test *test)
     test->mode = RECEIVER;
     test->sender_has_retransmits = 0;
     set_protocol(test, Ptcp);
+    test->server_udp_streams_accepted = 0;
     test->omit = OMIT;
     test->duration = DURATION;
     test->server_affinity = -1;
