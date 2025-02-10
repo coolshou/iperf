@@ -1149,6 +1149,9 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
         {"idle-timeout", required_argument, NULL, OPT_IDLE_TIMEOUT},
         {"rcv-timeout", required_argument, NULL, OPT_RCV_TIMEOUT},
         {"snd-timeout", required_argument, NULL, OPT_SND_TIMEOUT},
+#if defined(HAVE_IPPROTO_MPTCP)
+        {"mptcp", no_argument, NULL, 'm'},
+#endif
         {"debug", optional_argument, NULL, 'd'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
@@ -1174,7 +1177,7 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
     FILE *ptr_file;
 #endif /* HAVE_SSL */
 
-    while ((flag = getopt_long(argc, argv, "p:f:i:D1VJvsc:ub:t:n:k:l:P:Rw:B:M:N46S:L:ZO:F:A:T:C:dI:hX:", longopts, NULL)) != -1) {
+    while ((flag = getopt_long(argc, argv, "p:f:i:D1VJvsc:ub:t:n:k:l:P:Rw:B:M:N46S:L:ZO:F:A:T:C:dI:mhX:", longopts, NULL)) != -1) {
         switch (flag) {
             case 'p':
 		portno = atoi(optarg);
@@ -1647,6 +1650,12 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		test->settings->connect_timeout = unit_atoi(optarg);
 		client_flag = 1;
 		break;
+#if defined(HAVE_IPPROTO_MPTCP)
+	    case 'm':
+		set_protocol(test, Ptcp);
+		test->mptcp = 1;
+		break;
+#endif
 	    case 'h':
 		usage_long(stdout);
 		exit(0);
@@ -1913,7 +1922,7 @@ iperf_check_throttle(struct iperf_stream *sp, struct iperf_time *nowP)
         delta_bits = bits_sent - (seconds * sp->test->settings->rate);
         // Calclate time until next data send is required
         time_to_green_light = (SEC_TO_NS * delta_bits / sp->test->settings->rate);
-        // Whether shouuld wait before next send
+        // Whether should wait before next send
         if (time_to_green_light >= 0) {
 #if defined(HAVE_CLOCK_NANOSLEEP)
             if (clock_gettime(CLOCK_MONOTONIC, &nanosleep_time) == 0) {
@@ -1997,6 +2006,9 @@ iperf_send_mt(struct iperf_stream *sp)
     register struct iperf_test *test = sp->test;
     struct iperf_time now;
     int throttle_check_per_message;
+#if defined(HAVE_CLOCK_NANOSLEEP) || defined(HAVE_NANOSLEEP)
+    int throttle_check;
+#endif /* HAVE_CLOCK_NANOSLEEP, HAVE_NANOSLEEP */
 
     /* Can we do multisend mode? */
     if (test->settings->burst != 0)
@@ -2007,7 +2019,20 @@ iperf_send_mt(struct iperf_stream *sp)
         multisend = 1;	/* nope */
 
     /* Should bitrate throttle be checked for every send */
+#if defined(HAVE_CLOCK_NANOSLEEP) || defined(HAVE_NANOSLEEP)
+    if (test->settings->rate != 0) {
+        throttle_check = 1;
+        if (test->settings->burst == 0)
+            throttle_check_per_message = 1;
+        else
+            throttle_check_per_message = 0;
+    } else {
+        throttle_check = 0;
+        throttle_check_per_message = 0;
+    }
+#else /* !HAVE_CLOCK_NANOSLEEP && !HAVE_NANOSLEEP */
     throttle_check_per_message = test->settings->rate != 0 && test->settings->burst == 0;
+#endif /* HAVE_CLOCK_NANOSLEEP, HAVE_NANOSLEEP */
 
     for (message_sent = 0; sp->green_light && multisend > 0; --multisend) {
         // XXX If we hit one of these ending conditions maybe
@@ -2033,7 +2058,8 @@ iperf_send_mt(struct iperf_stream *sp)
         message_sent = 1;
     }
 #if defined(HAVE_CLOCK_NANOSLEEP) || defined(HAVE_NANOSLEEP)
-    if (!sp->green_light) { /* Should check if green ligh can be set, as pacing timer is not supported in this case */
+     /* Should check if green light can be set, as pacing timer is not supported in this case */
+    if (throttle_check && !throttle_check_per_message) {
 #else /* !HAVE_CLOCK_NANOSLEEP && !HAVE_NANOSLEEP */
     if (!throttle_check_per_message || message_sent == 0) {   /* Throttle check if was not checked for each send */
 #endif /* HAVE_CLOCK_NANOSLEEP, HAVE_NANOSLEEP */
@@ -2269,6 +2295,10 @@ send_parameters(struct iperf_test *test)
 	    cJSON_AddTrueToObject(j, "reverse");
 	if (test->bidirectional)
 	            cJSON_AddTrueToObject(j, "bidirectional");
+#if defined(HAVE_IPPROTO_MPTCP)
+	if (test->mptcp)
+	    cJSON_AddTrueToObject(j, "mptcp");
+#endif
 	if (test->settings->socket_bufsize)
 	    cJSON_AddNumberToObject(j, "window", test->settings->socket_bufsize);
 	if (test->settings->blksize)
@@ -2385,6 +2415,10 @@ get_parameters(struct iperf_test *test)
 	    iperf_set_test_reverse(test, 1);
         if ((j_p = iperf_cJSON_GetObjectItemType(j, "bidirectional", cJSON_True)) != NULL)
             iperf_set_test_bidirectional(test, 1);
+#if defined(HAVE_IPPROTO_MPTCP)
+	if ((j_p = iperf_cJSON_GetObjectItemType(j, "mptcp", cJSON_True)) != NULL)
+	    test->mptcp = 1;
+#endif
 	if ((j_p = iperf_cJSON_GetObjectItemType(j, "window", cJSON_Number)) != NULL)
 	    test->settings->socket_bufsize = j_p->valueint;
 	if ((j_p = iperf_cJSON_GetObjectItemType(j, "len", cJSON_Number)) != NULL)
@@ -2771,6 +2805,7 @@ JSON_read(int fd, int max_size)
     char *str;
     cJSON *json = NULL;
     int rc;
+    char msg_buf[WARN_STR_LEN * 2];
 
     /*
      * Read a four-byte integer, which is the length of the JSON to follow.
@@ -2798,26 +2833,34 @@ JSON_read(int fd, int max_size)
                             json = cJSON_Parse(str);
                         }
                         else {
-                            warning("JSON size of data read does not correspond to offered length");
+                            snprintf(msg_buf, sizeof(msg_buf), "JSON size of data read does not correspond to offered length - expected %d bytes but received %d; errno=%d", hsize, rc, errno);
+                            warning(msg_buf);
                         }
 	            }
+                    else {
+                        snprintf(msg_buf, sizeof(msg_buf), "JSON data read failed; errno=%d", errno);
+                        warning(msg_buf);
+                    }
 	            free(str);
                 }
             }
 	}
 	else {
-	    warning("JSON data length overflow");
+            snprintf(msg_buf, sizeof(msg_buf), "JSON data length overflow - %d bytes JSON size is not allowed", hsize);
+	    warning(msg_buf);
 	}
     }
     else {
         warning("Failed to read JSON data size");
+        snprintf(msg_buf, sizeof(msg_buf), "Failed to read JSON data size - read returned %d; errno=%d", rc, errno);
+        warning(msg_buf);
     }
     return json;
 }
 
 /*************************************************************/
 /**
- * JSONStream_Output - outputs an obj as event without distrubing it
+ * JSONStream_Output - outputs an obj as event without disturbing it
  */
 
 static int
