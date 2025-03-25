@@ -90,6 +90,18 @@
 #endif
 #endif
 
+#if defined(HAVE_INTTYPES_H)
+# include <inttypes.h>
+#else
+# ifndef PRIu64
+#  if sizeof(long) == 8
+#   define PRIu64		"lu"
+#  else
+#   define PRIu64		"llu"
+#  endif
+# endif
+#endif
+
 typedef struct {
     const unsigned char *json;
     size_t position;
