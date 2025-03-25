@@ -134,7 +134,7 @@ iperf-3.16 2023-11-30
     continue to work with OpenSSL 1.1.1. OpenSSL is used as a part
     of the iperf3 authentication functionality (Issue #1300, PR
     #1589).
-    
+
   * The authorized users file used by the authentication functionality
     is now checked for accessibility much earlier during the program
     startup, as opposed to being checked near the start of a
