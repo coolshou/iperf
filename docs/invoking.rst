@@ -184,7 +184,7 @@ the executable.
                  send output to a log file.
 
           --forceflush
-                 force  flushing output at every interval.  Used to avoid buffer-
+                 force flushing output at every interval.  Used to avoid  buffer-
                  ing when sending output to pipe.
 
           --timestamps[=format]
@@ -398,24 +398,24 @@ the executable.
                  set the IPv6 flow label (currently only supported on Linux)
 
           -X, --xbind name
-                 Bind  SCTP  associations  to  a  specific  subset of links using
-                 sctp_bindx(3).  The --B flag will be ignored  if  this  flag  is
+                 Bind SCTP associations to  a  specific  subset  of  links  using
+                 sctp_bindx(3).   The  --B  flag  will be ignored if this flag is
                  specified.  Normally SCTP will include the protocol addresses of
-                 all active links on the local host when setting up  an  associa-
-                 tion.  Specifying at least one --X name will disable this behav-
-                 iour.  This flag must be specified for each link to be  included
-                 in  the association, and is supported for both iperf servers and
+                 all  active  links on the local host when setting up an associa-
+                 tion. Specifying at least one --X name will disable this  behav-
+                 iour.   This flag must be specified for each link to be included
+                 in the association, and is supported for both iperf servers  and
                  clients (the latter are supported by passing the first --X argu-
-                 ment  to  bind(2)).  Hostnames are accepted as arguments and are
-                 resolved using getaddrinfo(3).  If the  --4  or  --6  flags  are
-                 specified,  names  which  do not resolve to addresses within the
+                 ment to bind(2)).  Hostnames are accepted as arguments  and  are
+                 resolved  using  getaddrinfo(3).   If  the  --4 or --6 flags are
+                 specified, names which do not resolve to  addresses  within  the
                  specified protocol family will be ignored.
 
           --nstreams n
                  Set number of SCTP streams.
 
           -Z, --zerocopy
-                 Use a "zero copy" method of sending data, such  as  sendfile(2),
+                 Use  a  "zero copy" method of sending data, such as sendfile(2),
                  instead of the usual write(2).
 
           -O, --omit n
@@ -426,12 +426,12 @@ the executable.
                  Prefix every output line with this string.
 
           --extra-data str
-                 Specify an extra data string field to be included in  JSON  out-
+                 Specify  an  extra data string field to be included in JSON out-
                  put.
 
           -C, --congestion algo
-                 Set  the  congestion control algorithm (Linux and FreeBSD only).
-                 An older --linux-congestion synonym for this  flag  is  accepted
+                 Set the congestion control algorithm (Linux and  FreeBSD  only).
+                 An  older  --linux-congestion  synonym for this flag is accepted
                  but is deprecated.
 
           --get-server-output
@@ -491,16 +491,16 @@ the executable.
                form PEM
 
           After these commands, the public key will be contained in the file pub-
-          lic.pem  and  the  private  key  will  be  contained  in  the file pri-
+          lic.pem and the  private  key  will  be  contained  in  the  file  pri-
           vate_not_protected.pem.
 
       Authentication - Authorized users configuration file
-          A simple plaintext file must be provided to the iperf3 server in  order
-          to  specify the authorized user credentials.  The file is a simple list
-          of comma-separated pairs of a username  and  a  corresponding  password
-          hash.   The password hash is a SHA256 hash of the string "{$user}$pass-
-          word".  The file can also contain commented lines (starting with the  #
-          character).   An example of commands to generate the password hash on a
+          A  simple plaintext file must be provided to the iperf3 server in order
+          to specify the authorized user credentials.  The file is a simple  list
+          of  comma-separated  pairs  of  a username and a corresponding password
+          hash.  The password hash is a SHA256 hash of the string  "{$user}$pass-
+          word".   The file can also contain commented lines (starting with the #
+          character).  An example of commands to generate the password hash on  a
           UNIX/Linux system is given below:
 
                > S_USER=mario S_PASSWD=rossi
@@ -526,6 +526,12 @@ the executable.
 
 
    ESnet                              May 2024                          IPERF3(1)
+=======
+
+
+
+   ESnet                           September 2022                       IPERF3(1)
+
 
 The iperf3 manual page will typically be installed in manual
 section 1.
