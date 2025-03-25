@@ -400,7 +400,7 @@ loop_end:
     }
     else
     {
-        item->valueint = (int)number;
+        item->valueint = (int64_t)number;
     }
 
     item->type = cJSON_Number;
@@ -422,7 +422,7 @@ CJSON_PUBLIC(double) cJSON_SetNumberHelper(cJSON *object, double number)
     }
     else
     {
-        object->valueint = (int)number;
+        object->valueint = (int64_t)number;
     }
 
     return object->valuedouble = number;
@@ -2476,7 +2476,7 @@ CJSON_PUBLIC(cJSON *) cJSON_CreateNumber(double num)
         }
         else
         {
-            item->valueint = (int)num;
+            item->valueint = (int64_t)num;
         }
     }
 
