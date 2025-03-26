@@ -458,7 +458,6 @@ struct iperf_test
 #define MAX_UDP_BLOCKSIZE (65535 - 8 - 20)
 #define MIN_INTERVAL 0.1
 #define MAX_INTERVAL 60.0
-//#define MAX_TIME 86400
 #define MAX_TIME 864000 //jimmy, 10day
 #define MAX_OMIT_TIME 600
 #define MAX_BURST 1000
