@@ -451,6 +451,7 @@ cleanup_server(struct iperf_test *test)
 {
     struct iperf_stream *sp;
     int i;
+    iperf_close_logfile(test);
 
     /* Cancel outstanding threads */
     int i_errno_save = i_errno;
