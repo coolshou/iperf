@@ -104,6 +104,7 @@ typedef atomic_uint_fast64_t atomic_iperf_size_t;
 #define OPT_USE_PKCS1_PADDING 30
 #define OPT_CNTL_KA 31
 #define OPT_SKIP_RX_COPY 32
+#define OPT_JSON_STREAM_FULL_OUTPUT 33
 
 /* states */
 #define TEST_START 1
@@ -155,6 +156,7 @@ int	iperf_get_test_protocol_id( struct iperf_test* ipt );
 int	iperf_get_test_json_output( struct iperf_test* ipt );
 char*	iperf_get_test_json_output_string ( struct iperf_test* ipt );
 int	iperf_get_test_json_stream( struct iperf_test* ipt );
+int	iperf_get_test_json_stream_full_output( struct iperf_test* ipt );
 int	iperf_get_test_zerocopy( struct iperf_test* ipt );
 int	iperf_get_test_get_server_output( struct iperf_test* ipt );
 char	iperf_get_test_unit_format(struct iperf_test *ipt);
@@ -200,6 +202,7 @@ void    iperf_set_test_template( struct iperf_test *ipt, const char *tmp_templat
 void	iperf_set_test_reverse( struct iperf_test* ipt, int reverse );
 void	iperf_set_test_json_output( struct iperf_test* ipt, int json_output );
 void	iperf_set_test_json_stream( struct iperf_test* ipt, int json_stream );
+void	iperf_set_test_json_stream_full_output( struct iperf_test* ipt, int json_stream_full_output );
 void    iperf_set_test_json_callback(struct iperf_test *ipt, void (*callback)(struct iperf_test *, char *));
 int	iperf_has_zerocopy( void );
 void	iperf_set_test_zerocopy( struct iperf_test* ipt, int zerocopy );
@@ -226,9 +229,11 @@ void    iperf_set_on_test_finish_callback(struct iperf_test* ipt, void (*callbac
 void    iperf_set_test_client_username(struct iperf_test *ipt, const char *client_username);
 void    iperf_set_test_client_password(struct iperf_test *ipt, const char *client_password);
 void    iperf_set_test_client_rsa_pubkey(struct iperf_test *ipt, const char *client_rsa_pubkey_base64);
+void    iperf_set_test_client_rsa_pubkey_from_file(struct iperf_test *ipt, const char *client_rsa_pubkey_file);
 void    iperf_set_test_server_authorized_users(struct iperf_test *ipt, const char *server_authorized_users);
 void    iperf_set_test_server_skew_threshold(struct iperf_test *ipt, int server_skew_threshold);
 void    iperf_set_test_server_rsa_privkey(struct iperf_test *ipt, const char *server_rsa_privkey_base64);
+void    iperf_set_test_server_rsa_privkey_from_file(struct iperf_test *ipt, const char *server_rsa_privkey_file);
 #endif // HAVE_SSL
 
 void	iperf_set_test_connect_timeout(struct iperf_test *ipt, int ct);
