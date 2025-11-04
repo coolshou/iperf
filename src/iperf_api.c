@@ -1114,7 +1114,8 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
         {"udp", no_argument, NULL, 'u'},
         {"bitrate", required_argument, NULL, 'b'},
         {"bandwidth", required_argument, NULL, 'b'},
-	{"server-bitrate-limit", required_argument, NULL, OPT_SERVER_BITRATE_LIMIT},
+        {"server-bitrate-limit", required_argument, NULL, OPT_SERVER_BITRATE_LIMIT},
+        {"server-max-duration", required_argument, NULL, OPT_SERVER_MAX_DURATION},
         {"time", required_argument, NULL, 't'},
         {"bytes", required_argument, NULL, 'n'},
         {"blockcount", required_argument, NULL, 'k'},
@@ -1325,6 +1326,9 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
             case OPT_NUMSTREAMS:
 #if defined(linux) || defined(__FreeBSD__)
                 test->settings->num_ostreams = unit_atoi(optarg);
+                if (i_errno != 0) {
+                    return -1;
+                }
                 client_flag = 1;
 #else /* linux */
                 i_errno = IEUNIMP;
@@ -1343,6 +1347,9 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		    }
 		}
                 test->settings->rate = unit_atof_rate(optarg);
+                if (i_errno != 0) {
+                    return -1;
+                }
 		rate_flag = 1;
 		client_flag = 1;
                 break;
@@ -1359,6 +1366,9 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		    }
 		}
 		test->settings->bitrate_limit = unit_atof_rate(optarg);
+		if (i_errno != 0) {
+			return -1;
+		}
 		server_flag = 1;
 	        break;
             case 't':
@@ -1372,14 +1382,23 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
                 break;
             case 'n':
                 test->settings->bytes = unit_atoi(optarg);
+                if (i_errno != 0) {
+                    return -1;
+                }
 		client_flag = 1;
                 break;
             case 'k':
                 test->settings->blocks = unit_atoi(optarg);
+                if (i_errno != 0) {
+                    return -1;
+                }
 		client_flag = 1;
                 break;
             case 'l':
                 blksize = unit_atoi(optarg);
+                if (i_errno != 0) {
+                    return -1;
+                }
 		client_flag = 1;
                 break;
             case 'P':
@@ -1411,6 +1430,9 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		// Do sanity checks as double-precision floating point
 		// to avoid possible integer overflows.
                 farg = unit_atof(optarg);
+                if (i_errno != 0) {
+                    return -1;
+                }
                 if (farg > (double) MAX_TCP_BUFFER) {
                     i_errno = IEBUFSIZE;
                     return -1;
@@ -1555,6 +1577,14 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
                 }
 		server_flag = 1;
 	        break;
+            case OPT_SERVER_MAX_DURATION:
+                test->max_server_duration = atoi(optarg);
+                if (test->max_server_duration < 0 || test->max_server_duration > MAX_TIME) {
+                    i_errno = IEDURATION;
+                    return -1;
+                }
+                server_flag = 1;
+                break;
             case OPT_RCV_TIMEOUT:
                 rcv_timeout_in = atoi(optarg);
                 if (rcv_timeout_in < MIN_NO_MSG_RCVD_TIMEOUT || rcv_timeout_in > MAX_TIME * SEC_TO_mS) {
@@ -1682,6 +1712,9 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 	    case OPT_FQ_RATE:
 #if defined(HAVE_SO_MAX_PACING_RATE)
 		test->settings->fqrate = unit_atof_rate(optarg);
+		if (i_errno != 0) {
+			return -1;
+		}
 		client_flag = 1;
 #else /* HAVE_SO_MAX_PACING_RATE */
 		i_errno = IEUNIMP;
@@ -1731,10 +1764,16 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 #endif /* HAVE_MSG_TRUNC */
 	    case OPT_PACING_TIMER:
 		test->settings->pacing_timer = unit_atoi(optarg);
+		if (i_errno != 0) {
+			return -1;
+		}
 		client_flag = 1;
 		break;
 	    case OPT_CONNECT_TIMEOUT:
 		test->settings->connect_timeout = unit_atoi(optarg);
+		if (i_errno != 0) {
+			return -1;
+		}
 		client_flag = 1;
 		break;
 #if defined(HAVE_IPPROTO_MPTCP)
@@ -2576,6 +2615,13 @@ get_parameters(struct iperf_test *test)
 	if (test->settings->rate)
 	    cJSON_AddNumberToObject(test->json_start, "target_bitrate", test->settings->rate);
 	cJSON_Delete(j);
+
+    /* Ensure that the client does not request to run longer than the server's configured max */
+    if ((test->max_server_duration > 0) && (((test->duration + test->omit) > test->max_server_duration) || (test->duration == 0))) {
+        i_errno = IEMAXSERVERTESTDURATIONEXCEEDED;
+        r = -1;
+    }
+
     }
     return r;
 }
