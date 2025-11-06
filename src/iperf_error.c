@@ -502,7 +502,7 @@ iperf_strerror(int int_errno)
             break;
         case IEHOSTDEV:
 	    snprintf(errstr, len, "host device name (ip%%<dev>) is supported (and required) only for IPv6 link-local address");
-            break;        
+            break;
 	case IENOMSG:
 	    snprintf(errstr, len, "idle timeout for receiving data");
             break;
@@ -557,6 +557,8 @@ iperf_strerror(int int_errno)
         case IEMAXSERVERTESTDURATIONEXCEEDED:
             snprintf(errstr, len, "client's requested duration exceeds the server's maximum permitted limit");
             break;
+        case IEINTERRUPT:
+            snprintf(errstr, len, "Test interrupted by user");
 	default:
 	    snprintf(errstr, len, "int_errno=%d", int_errno);
 	    perr = 1;

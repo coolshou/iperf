@@ -332,6 +332,7 @@ struct iperf_test
     int       mapped_v4;
     int       listener;
     int       prot_listener;
+    int       stop_pipe[2]; /* for external stop signal */
 
     int	      ctrl_sck_mss;			/* MSS for the control channel */
 

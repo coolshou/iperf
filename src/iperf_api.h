@@ -177,6 +177,7 @@ int     iperf_get_mapped_v4(struct iperf_test* ipt);
 
 /* Setter routines for some fields inside iperf_test. */
 void	iperf_set_verbose( struct iperf_test* ipt, int verbose );
+void    iperf_set_test_forceflush(struct iperf_test* ipt);
 void	iperf_set_control_socket( struct iperf_test* ipt, int ctrl_sck );
 void	iperf_set_test_omit( struct iperf_test* ipt, int omit );
 void	iperf_set_test_duration( struct iperf_test* ipt, int duration );
@@ -225,6 +226,7 @@ void    iperf_set_on_new_stream_callback(struct iperf_test* ipt, void (*callback
 void    iperf_set_on_test_start_callback(struct iperf_test* ipt, void (*callback)(struct iperf_test *));
 void    iperf_set_on_test_connect_callback(struct iperf_test* ipt, void (*callback)(struct iperf_test *));
 void    iperf_set_on_test_finish_callback(struct iperf_test* ipt, void (*callback)(struct iperf_test *));
+
 
 #if defined(HAVE_SSL)
 void    iperf_set_test_client_username(struct iperf_test *ipt, const char *client_username);
@@ -383,6 +385,8 @@ int iperf_create_pidfile(struct iperf_test *);
 int iperf_delete_pidfile(struct iperf_test *);
 void iperf_check_total_rate(struct iperf_test *, iperf_size_t);
 
+void iperf_stop_test(struct iperf_test *test);
+
 /* JSON output routines. */
 int iperf_json_start(struct iperf_test *);
 int iperf_json_finish(struct iperf_test *);
@@ -517,6 +521,8 @@ enum {
     /* Timer errors */
     IENEWTIMER = 300,       // Unable to create new timer (check perror)
     IEUPDATETIMER = 301,    // Unable to update timer (check perror)
+    /* Custom errors */
+    IEINTERRUPT = 999,     // User Interrupt
 };
 
 
