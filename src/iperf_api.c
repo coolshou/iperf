@@ -447,6 +447,11 @@ iperf_set_verbose(struct iperf_test *ipt, int verbose)
 {
     ipt->verbose = verbose;
 }
+void
+iperf_set_test_forceflush(struct iperf_test* ipt)
+{
+    ipt->forceflush = 1;
+}
 
 void
 iperf_set_control_socket(struct iperf_test *ipt, int ctrl_sck)
@@ -602,25 +607,25 @@ iperf_set_mapped_v4(struct iperf_test *ipt, const int val)
     ipt->mapped_v4 = val;
 }
 
-void 
+void
 iperf_set_on_new_stream_callback(struct iperf_test* ipt, void (*callback)(struct iperf_stream *))
 {
         ipt->on_new_stream = callback;
 }
 
-void 
+void
 iperf_set_on_test_start_callback(struct iperf_test* ipt, void (*callback)(struct iperf_test *))
 {
         ipt->on_test_start = callback;
 }
 
-void 
+void
 iperf_set_on_test_connect_callback(struct iperf_test* ipt, void (*callback)(struct iperf_test *))
 {
         ipt->on_connect = callback;
 }
 
-void 
+void
 iperf_set_on_test_finish_callback(struct iperf_test* ipt, void (*callback)(struct iperf_test *))
 {
         ipt->on_test_finish = callback;
@@ -2030,7 +2035,7 @@ iperf_check_throttle(struct iperf_stream *sp, struct iperf_time *nowP)
     uint64_t bits_per_second;
     int64_t missing_rate;
     uint64_t bits_sent;
-    
+
 #if defined(HAVE_CLOCK_NANOSLEEP) || defined(HAVE_NANOSLEEP)
     struct timespec nanosleep_time;
     int64_t time_to_green_light, delta_bits;
@@ -2137,6 +2142,13 @@ iperf_check_total_rate(struct iperf_test *test, iperf_size_t last_interval_bytes
     }
 }
 
+void
+iperf_stop_test(struct iperf_test *test)
+{
+    if (test) {
+        write(test->stop_pipe[1], "x", 1);
+    }
+}
 int
 iperf_send_mt(struct iperf_stream *sp)
 {
@@ -2217,7 +2229,7 @@ iperf_recv_mt(struct iperf_stream *sp)
 		i_errno = IESTREAMREAD;
 		return r;
 	    }
-            
+
             /* Collect statistics only if receive did not timeout (e.g. `Nread()` may timeout).
              * This is also important for `--rcv-timeout` to work properly.
              */
@@ -3167,7 +3179,9 @@ iperf_new_test()
 
     /* By default all output goes to stdout */
     test->outfile = stdout;
-
+    if (pipe(test->stop_pipe) < 0) {
+        perror("iperf stop_pipe");
+    }
     return test;
 }
 
@@ -3457,6 +3471,9 @@ iperf_free_test(struct iperf_test *test)
     /* Free interval's traffic array for average rate calculations */
     if (test->bitrate_limit_intervals_traffic_bytes != NULL)
         free(test->bitrate_limit_intervals_traffic_bytes);
+
+    close(test->stop_pipe[0]);
+    close(test->stop_pipe[1]);
 
     /* XXX: Why are we setting these values to NULL? */
     // test->streams = NULL;
@@ -3830,7 +3847,7 @@ iperf_print_intermediate(struct iperf_test *test)
      * results around unless we're the server and the client requested the server output.
      *
      * This avoids unneeded memory build up for long sessions.
-     * 
+     *
      * The user can still opt in for all measurement data via the --json-stream-full-output option.
      */
     discard_json = test->json_stream == 1 && !test->json_stream_full_output && !(test->role == 's' && test->get_server_output);
@@ -4434,7 +4451,7 @@ iperf_print_results(struct iperf_test *test)
                      * ambiguities between the sender and receiver.
                      */
                     cJSON_AddItemToObject(test->json_end, sum_name, iperf_json_printf("start: %f  end: %f  seconds: %f  bytes: %d  bits_per_second: %f  jitter_ms: %f  lost_packets: %d  packets: %d  lost_percent: %f sender: %b", (double) start_time, (double) receiver_time, (double) receiver_time, (int64_t) total_sent, bandwidth * 8, (double) avg_jitter * 1000.0, (int64_t) lost_packets, (int64_t) total_packets, (double) lost_percent, stream_must_be_sender));
-                    
+
                     double sent_bandwidth = sender_time > 0 ? ((double) total_sent * 8 / sender_time) : 0.0;
                     double recv_bandwidth = receiver_time > 0 ? ((double) total_received * 8 / receiver_time) : 0.0;
                     /*
@@ -5409,25 +5426,25 @@ iperf_printf(struct iperf_test *test, const char* format, ...)
      * to be buffered up anyway.
      */
     if (test->role == 'c') {
-	if (ct) {
+	    if (ct) {
             r0 = fprintf(test->outfile, "%s", ct);
             if (r0 < 0) {
                 r = r0;
                 goto bottom;
             }
             r += r0;
-	}
-	if (test->title) {
-	    r0 = fprintf(test->outfile, "%s:  ", test->title);
+	    }
+	    if (test->title) {
+	        r0 = fprintf(test->outfile, "%s:  ", test->title);
             if (r0 < 0) {
                 r = r0;
                 goto bottom;
             }
             r += r0;
         }
-	va_start(argp, format);
-	r0 = vfprintf(test->outfile, format, argp);
-	va_end(argp);
+	    va_start(argp, format);
+	    r0 = vfprintf(test->outfile, format, argp);
+	    va_end(argp);
         if (r0 < 0) {
             r = r0;
             goto bottom;
@@ -5435,14 +5452,14 @@ iperf_printf(struct iperf_test *test, const char* format, ...)
         r += r0;
     }
     else if (test->role == 's') {
-	if (ct) {
-	    r0 = snprintf(linebuffer, sizeof(linebuffer), "%s", ct);
+	    if (ct) {
+	        r0 = snprintf(linebuffer, sizeof(linebuffer), "%s", ct);
             if (r0 < 0) {
                 r = r0;
                 goto bottom;
             }
             r += r0;
-	}
+	    }
         /* Should always be true as long as sizeof(ct) < sizeof(linebuffer) */
         if (r < sizeof(linebuffer)) {
             va_start(argp, format);
@@ -5454,13 +5471,13 @@ iperf_printf(struct iperf_test *test, const char* format, ...)
             }
             r += r0;
         }
-	fprintf(test->outfile, "%s", linebuffer);
+	    fprintf(test->outfile, "%s", linebuffer);
 
-	if (test->role == 's' && iperf_get_test_get_server_output(test)) {
-	    struct iperf_textline *l = (struct iperf_textline *) malloc(sizeof(struct iperf_textline));
-	    l->line = strdup(linebuffer);
-	    TAILQ_INSERT_TAIL(&(test->server_output_list), l, textlineentries);
-	}
+	    if (test->role == 's' && iperf_get_test_get_server_output(test)) {
+	        struct iperf_textline *l = (struct iperf_textline *) malloc(sizeof(struct iperf_textline));
+	        l->line = strdup(linebuffer);
+	        TAILQ_INSERT_TAIL(&(test->server_output_list), l, textlineentries);
+	    }
     }
 
   bottom:
@@ -5532,7 +5549,8 @@ iperf_set_control_keepalive(struct iperf_test *test)
                 return -1;
             }
         }
-   
+
+
         // Seems that at least in Windows WSL2, TCP keepalive retries full interval must be
         // smaller than the idle interval. Otherwise, the keepalive message is sent only once.
         if (test->settings->cntl_ka_keepidle) {

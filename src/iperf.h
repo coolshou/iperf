@@ -332,6 +332,7 @@ struct iperf_test
     int       mapped_v4;
     int       listener;
     int       prot_listener;
+    int       stop_pipe[2]; /* for external stop signal */
 
     int	      ctrl_sck_mss;			/* MSS for the control channel */
 
@@ -461,7 +462,7 @@ struct iperf_test
 #define MAX_UDP_BLOCKSIZE (65535 - 8 - 20)
 #define MIN_INTERVAL 0.1
 #define MAX_INTERVAL 60.0
-#define MAX_TIME 86400
+#define MAX_TIME 864000
 #define MAX_OMIT_TIME 600
 #define MAX_BURST 1000
 #define MAX_MSS (32 * 1024 - 1)

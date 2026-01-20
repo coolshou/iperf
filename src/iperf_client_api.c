@@ -663,7 +663,13 @@ iperf_run_client(struct iperf_test * test)
                     NULL,
                     timeout);
 #else
-	result = select(test->max_fd + 1, &read_set, &write_set, NULL, timeout);
+    int max_fd = test->max_fd;
+    FD_SET(test->stop_pipe[0], &read_set);
+    if (test->stop_pipe[0] > max_fd)
+        max_fd = test->stop_pipe[0];
+
+    result = select(max_fd + 1, &read_set, &write_set, NULL, timeout);
+    // result = select(test->max_fd + 1, &read_set, &write_set, NULL, timeout);
 #endif // __vxworks or __VXWORKS__
 	if (result < 0 && errno != EINTR) {
   	    i_errno = IESELECT;
@@ -702,7 +708,12 @@ iperf_run_client(struct iperf_test * test)
 		FD_CLR(test->ctrl_sck, &read_set);
 	    }
 	}
-
+        if (FD_ISSET(test->stop_pipe[0], &read_set)) {
+            char buf[8];
+            read(test->stop_pipe[0], buf, sizeof(buf)); // clear pipe
+            i_errno = IEINTERRUPT;  // custom error
+            goto cleanup_and_fail;
+        }
 	if (test->state == TEST_RUNNING) {
 
 	    /* Is this our first time really running? */
@@ -855,7 +866,7 @@ iperf_run_client(struct iperf_test * test)
                 errno = rc;
                 iperf_err(test, "cleanup_and_fail in pthread_cancel - %s", iperf_strerror(i_errno));
             }
-            rc = pthread_join(sp->thr, NULL); 
+            rc = pthread_join(sp->thr, NULL);
             if (rc != 0 && rc != ESRCH) {
                 i_errno = IEPTHREADJOIN;
                 errno = rc;

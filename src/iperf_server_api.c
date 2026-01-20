@@ -632,7 +632,14 @@ iperf_run_server(struct iperf_test *test)
             timeout = &used_timeout;
         }
 
-        result = select(test->max_fd + 1, &read_set, &write_set, NULL, timeout);
+        // result = select(test->max_fd + 1, &read_set, &write_set, NULL, timeout);
+        int max_fd = test->max_fd;
+        FD_SET(test->stop_pipe[0], &read_set);
+        if (test->stop_pipe[0] > max_fd)
+            max_fd = test->stop_pipe[0];
+
+        result = select(max_fd + 1, &read_set, &write_set, NULL, timeout);
+
         if (result < 0 && errno != EINTR) {
             cleanup_server(test);
             i_errno = IESELECT;
@@ -938,6 +945,13 @@ iperf_run_server(struct iperf_test *test)
             }
         }
 
+        if (FD_ISSET(test->stop_pipe[0], &read_set)) {
+            char buf[8];
+            read(test->stop_pipe[0], buf, sizeof(buf));
+            i_errno = IEINTERRUPT;
+            // goto cleanup_and_fail;
+            cleanup_server(test);
+        }
 	if (result == 0 ||
 	    (timeout != NULL && timeout->tv_sec == 0 && timeout->tv_usec == 0)) {
 	    /* Run the timers. */
