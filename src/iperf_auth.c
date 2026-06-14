@@ -1,5 +1,5 @@
 /*
- * iperf, Copyright (c) 2014-2023, The Regents of the University of
+ * iperf, Copyright (c) 2014-2026, The Regents of the University of
  * California, through Lawrence Berkeley National Laboratory (subject
  * to receipt of any required approvals from the U.S. Dept. of
  * Energy).  All rights reserved.
@@ -135,23 +135,38 @@ size_t calcDecodeLength(const char* b64input) { //Calculates the length of a dec
     else if (len >= 1 && b64input[len-1] == '=') //last char is =
         padding = 1;
 
-    return (len*3)/4 - padding;
+    size_t decoded_len = (len*3)/4;
+    if (padding > decoded_len) {
+        return 0;
+    }
+    return decoded_len - padding;
 }
 
 int Base64Decode(const char* b64message, unsigned char** buffer, size_t* length) { //Decodes a base64 encoded string
     BIO *bio, *b64;
+    int br;
 
-    int decodeLen = calcDecodeLength(b64message);
+    size_t decodeLen = calcDecodeLength(b64message);
     *buffer = (unsigned char*)malloc(decodeLen + 1);
+    if (!*buffer)
+        return -1;
     (*buffer)[decodeLen] = '\0';
+    *length = 0;
 
     bio = BIO_new_mem_buf(b64message, -1);
     b64 = BIO_new(BIO_f_base64());
     bio = BIO_push(b64, bio);
 
     BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL); //Do not use newlines to flush buffer
-    *length = BIO_read(bio, *buffer, strlen(b64message));
+    br = BIO_read(bio, *buffer, strlen(b64message));
     BIO_free_all(bio);
+
+    if (br < 0) {
+        free(*buffer);
+        *buffer = NULL;
+        return -1;
+    }
+    *length = (size_t)br;
 
     return (0); //success
 }
@@ -173,7 +188,12 @@ EVP_PKEY *load_pubkey_from_file(const char *file) {
 EVP_PKEY *load_pubkey_from_base64(const char *buffer) {
     unsigned char *key = NULL;
     size_t key_len;
-    Base64Decode(buffer, &key, &key_len);
+    int bd;
+
+    bd = Base64Decode(buffer, &key, &key_len);
+    if (bd < 0) {
+        return NULL;
+    }
 
     BIO* bio = BIO_new(BIO_s_mem());
     BIO_write(bio, key, key_len);
@@ -200,7 +220,12 @@ EVP_PKEY *load_privkey_from_file(const char *file) {
 EVP_PKEY *load_privkey_from_base64(const char *buffer) {
     unsigned char *key = NULL;
     size_t key_len;
-    Base64Decode(buffer, &key, &key_len);
+    int bd;
+
+    bd = Base64Decode(buffer, &key, &key_len);
+    if (bd < 0) {
+        return NULL;
+    }
 
     BIO* bio = BIO_new(BIO_s_mem());
     BIO_write(bio, key, key_len);
@@ -272,7 +297,8 @@ int encrypt_rsa_message(const char *plaintext, EVP_PKEY *public_key, unsigned ch
     EVP_PKEY_encrypt(ctx, *encryptedtext, &encryptedtext_len, rsa_buffer, rsa_buffer_len);
     EVP_PKEY_CTX_free(ctx);
 #else
-    encryptedtext_len = RSA_public_encrypt(rsa_buffer_len, rsa_buffer, *encryptedtext, rsa, padding);
+    int encrypt_ret = RSA_public_encrypt(rsa_buffer_len, rsa_buffer, *encryptedtext, rsa, padding);
+    encryptedtext_len = encrypt_ret < 0 ? 0 : (size_t) encrypt_ret;
     RSA_free(rsa);
 #endif
 
@@ -291,7 +317,6 @@ int encrypt_rsa_message(const char *plaintext, EVP_PKEY *public_key, unsigned ch
 }
 
 int decrypt_rsa_message(const unsigned char *encryptedtext, const int encryptedtext_len, EVP_PKEY *private_key, unsigned char **plaintext, int use_pkcs1_padding) {
-    int ret =0;
 #if OPENSSL_VERSION_MAJOR >= 3
     EVP_PKEY_CTX *ctx;
 #else
@@ -328,7 +353,7 @@ int decrypt_rsa_message(const unsigned char *encryptedtext, const int encryptedt
         padding = RSA_PKCS1_PADDING;
     }
 #if OPENSSL_VERSION_MAJOR >= 3
-
+    int ret = 0;
     plaintext_len = output_buffer_len;
     EVP_PKEY_decrypt_init(ctx);
 
@@ -339,7 +364,8 @@ int decrypt_rsa_message(const unsigned char *encryptedtext, const int encryptedt
     ret = EVP_PKEY_decrypt(ctx, *plaintext, &plaintext_len, rsa_buffer, rsa_buffer_len);
     EVP_PKEY_CTX_free(ctx);
 #else
-    plaintext_len = RSA_private_decrypt(rsa_buffer_len, rsa_buffer, *plaintext, rsa, padding);
+    int decrypt_ret = RSA_private_decrypt(rsa_buffer_len, rsa_buffer, *plaintext, rsa, padding);
+    plaintext_len = decrypt_ret < 0 ? 0 : (size_t) decrypt_ret;
     RSA_free(rsa);
 #endif
 
@@ -353,9 +379,11 @@ int decrypt_rsa_message(const unsigned char *encryptedtext, const int encryptedt
 
     return plaintext_len;
 
+#if OPENSSL_VERSION_MAJOR >= 3
   errreturn:
     fprintf(stderr, "%s\n", ERR_error_string(ERR_get_error(), NULL));
     return 0;
+#endif
 }
 
 int encode_auth_setting(const char *username, const char *password, EVP_PKEY *public_key, char **authtoken, int use_pkcs1_padding){
@@ -369,7 +397,7 @@ int encode_auth_setting(const char *username, const char *password, EVP_PKEY *pu
     const int text_len = strlen(auth_text_format) + strlen(username) + strlen(password) + 32;
     char *text = (char *) calloc(text_len, sizeof(char));
     if (text == NULL) {
-	return -1;
+        return -1;
     }
     snprintf(text, text_len, auth_text_format, username, password, (int64_t)utc_seconds);
 
@@ -390,7 +418,12 @@ int decode_auth_setting(int enable_debug, const char *authtoken, EVP_PKEY *priva
     unsigned char *encrypted_b64 = NULL;
     size_t encrypted_len_b64;
     int64_t utc_seconds =0;
-    Base64Decode(authtoken, &encrypted_b64, &encrypted_len_b64);
+    int bd;
+
+    bd = Base64Decode(authtoken, &encrypted_b64, &encrypted_len_b64);
+    if (bd < 0) {
+        return -1;
+    }
 
     unsigned char *plaintext = NULL;
     int plaintext_len;
@@ -406,21 +439,21 @@ int decode_auth_setting(int enable_debug, const char *authtoken, EVP_PKEY *priva
     s_username = (char *) calloc(plaintext_len, sizeof(char));
     if (s_username == NULL) {
         OPENSSL_free(plaintext);
-	return -1;
+        return -1;
     }
     s_password = (char *) calloc(plaintext_len, sizeof(char));
     if (s_password == NULL) {
         OPENSSL_free(plaintext);
-	free(s_username);
-	return -1;
+        free(s_username);
+        return -1;
     }
 
     int rc = sscanf((char *) plaintext, auth_text_format, s_username, s_password, &utc_seconds);
     if (rc != 3) {
         OPENSSL_free(plaintext);
-	free(s_password);
-	free(s_username);
-	return -1;
+        free(s_password);
+        free(s_username);
+        return -1;
     }
 
     if (enable_debug) {

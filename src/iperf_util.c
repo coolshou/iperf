@@ -57,24 +57,26 @@
  */
 int readentropy(void *out, size_t outsize)
 {
-    static FILE *frandom;
+    FILE *frandom;
     static const char rndfile[] = "/dev/urandom";
+    int is_eof = 0;
 
     if (!outsize) return 0;
 
+    frandom = fopen(rndfile, "rb");
     if (frandom == NULL) {
-        frandom = fopen(rndfile, "rb");
-        if (frandom == NULL) {
-            iperf_errexit(NULL, "error - failed to open %s: %s\n",
-                          rndfile, strerror(errno));
-        }
-        setbuf(frandom, NULL);
+        iperf_errexit(NULL, "error - failed to open %s: %s\n",
+                      rndfile, strerror(errno));
     }
+    setbuf(frandom, NULL);
     if (fread(out, 1, outsize, frandom) != outsize) {
+        is_eof = feof(frandom);
+        fclose(frandom);
         iperf_errexit(NULL, "error - failed to read %s: %s\n",
                       rndfile,
-                      feof(frandom) ? "EOF" : strerror(errno));
+                      is_eof ? "EOF" : strerror(errno));
     }
+    fclose(frandom);
     return 0;
 }
 
@@ -317,7 +319,7 @@ get_optional_features(void)
     numfeatures++;
 #endif /* HAVE_SSL */
 
-#if defined(HAVE_SO_BINDTODEVICE)
+#if defined(CAN_BIND_TO_DEVICE)
     if (numfeatures > 0) {
 	strncat(features, ", ",
 		sizeof(features) - strlen(features) - 1);
@@ -325,7 +327,7 @@ get_optional_features(void)
     strncat(features, "bind to device",
 	sizeof(features) - strlen(features) - 1);
     numfeatures++;
-#endif /* HAVE_SO_BINDTODEVICE */
+#endif /* CAN_BIND_TO_DEVICE */
 
 #if defined(HAVE_DONT_FRAGMENT)
     if (numfeatures > 0) {

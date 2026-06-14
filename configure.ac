@@ -25,7 +25,7 @@
 
 # Initialize the autoconf system for the specified tool, version and mailing list
 AC_PREREQ([2.71])
-AC_INIT([iperf],[3.20+],[https://github.com/esnet/iperf],[iperf],[https://software.es.net/iperf/])
+AC_INIT([iperf],[3.21+],[https://github.com/esnet/iperf],[iperf],[https://software.es.net/iperf/])
 m4_include([config/ax_check_openssl.m4])
 m4_include([config/ax_pthread.m4])
 m4_include([config/iperf_config_static_bin.m4])
@@ -288,6 +288,23 @@ AC_COMPILE_IFELSE(
 if test "x$iperf3_cv_header_so_bindtodevice" = "xyes"; then
     AC_DEFINE([HAVE_SO_BINDTODEVICE], [1], [Have SO_BINDTODEVICE sockopt.])
 fi
+
+# Check for IP_BOUND_IF sockopt (believed to be macOS only)
+AC_CACHE_CHECK([IP_BOUND_IF socket option],
+[iperf3_cv_header_ip_bound_if],
+AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM([[#include <netinet/in.h>]],
+                   [[int foo = IP_BOUND_IF;]])],
+  iperf3_cv_header_ip_bound_if=yes,
+  iperf3_cv_header_ip_bound_if=no))
+if test "x$iperf3_cv_header_ip_bound_if" = "xyes"; then
+    AC_DEFINE([HAVE_IP_BOUND_IF], [1], [Have IP_BOUND_IF sockopt.])
+fi
+
+if test "x$iperf3_cv_header_so_bindtodevice" = "xyes" -o "x$iperf3_cv_header_ip_bound_if" = "xyes"; then
+    AC_DEFINE([CAN_BIND_TO_DEVICE], [1], [Can bind to device via SO_BINDTODEVICE or IP_BOUND_IF.])
+fi
+
 
 # Check for IP_MTU_DISCOVER (mostly on Linux)
 AC_CACHE_CHECK([IP_MTU_DISCOVER socket option],

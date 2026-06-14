@@ -1,4 +1,4 @@
-.TH IPERF3 1 "November 2025" ESnet "User Manuals"
+.TH IPERF3 1 "April 2026" ESnet "User Manuals"
 .SH NAME
 iperf3 \- perform network throughput tests
 .SH SYNOPSIS
@@ -156,7 +156,7 @@ scope.
 .TP
 .BR --bind-dev " \fIdev\fR"
 Bind to the specified network interface.
-This option uses SO_BINDTODEVICE, and may require root permissions.
+This option uses SO_BINDTODEVICE or IP_BOUND_IF, and may require root permissions.
 (Available on Linux and possibly other systems.)
 .TP
 .BR -V ", " --verbose " "
