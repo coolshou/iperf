@@ -2194,6 +2194,14 @@ iperf_check_total_rate(struct iperf_test *test, iperf_size_t last_interval_bytes
     }
 }
 
+void
+iperf_stop_test(struct iperf_test *test)
+{
+    if (test) {
+        write(test->stop_pipe[1], "x", 1);
+    }
+}
+
 int
 iperf_send_mt(struct iperf_stream *sp)
 {
