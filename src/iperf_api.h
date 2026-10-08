@@ -443,145 +443,124 @@ char *iperf_strerror(int);
 extern int i_errno;
 extern const char *errarg;
 enum {
-  IENONE = 0, // No error
-  /* Parameter errors */
-  IESERVCLIENT = 1, // Iperf cannot be both server and client
-  IENOROLE = 2,     // Iperf must either be a client (-c) or server (-s)
-  IESERVERONLY = 3, // This option is server only
-  IECLIENTONLY = 4, // This option is client only
-  IEDURATION = 5,   // test duration too long. Maximum value = %dMAX_TIME
-  IENUMSTREAMS =
-      6, // Number of parallel streams too large. Maximum value = %dMAX_STREAMS
-  IEBLOCKSIZE = 7, // Block size too large. Maximum value = %dMAX_BLOCKSIZE
-  IEBUFSIZE =
-      8, // Socket buffer size too large. Maximum value = %dMAX_TCP_BUFFER
-  IEINTERVAL = 9,    // Invalid report interval (min = %gMIN_INTERVAL, max =
-                     // %gMAX_INTERVAL seconds)
-  IEMSS = 10,        // MSS too large. Maximum value = %dMAX_MSS
-  IENOSENDFILE = 11, // This OS does not support sendfile
-  IEOMIT = 12,       // Bogus value for --omit
-  IEUNIMP = 13,      // Not implemented yet
-  IEFILE = 14,       // -F file couldn't be opened
-  IEBURST = 15,      // Invalid burst count. Maximum value = %dMAX_BURST
-  IEENDCONDITIONS =
-      16,         // Only one test end condition (-t, -n, -k) may be specified
-  IELOGFILE = 17, // Can't open log file
-  IENOSCTP = 18,  // No SCTP support available
-  IEBIND = 19,    // UNUSED:  Local port specified with no local bind option
-  IEUDPBLOCKSIZE = 20,  // Block size invalid
-  IEBADTOS = 21,        // Bad TOS value
-  IESETCLIENTAUTH = 22, // Bad configuration of client authentication
-  IESETSERVERAUTH = 23, // Bad configuration of server authentication
-  IEBADFORMAT = 24,     // Bad format argument to -f
-  IEREVERSEBIDIR = 25,  // Iperf cannot be both reverse and bidirectional
-  IEBADPORT = 26,       // Bad port number
-  IETOTALRATE = 27, // Total required bandwidth is larger than server's limit
-  IETOTALINTERVAL =
-      28, // Invalid time interval for calculating average data rate
-  IESKEWTHRESHOLD = 29, // Invalid value specified as skew threshold
-  IEIDLETIMEOUT = 30,   // Invalid value specified as idle state timeout
-  IERCVTIMEOUT = 31,    // Illegal message receive timeout
-  IERVRSONLYRCVTIMEOUT =
-      32,            // Client receive timeout is valid only in reverse mode
-  IESNDTIMEOUT = 33, // Illegal message send timeout
-  IEUDPFILETRANSFER = 34, // Cannot transfer file using UDP
-  IESERVERAUTHUSERS = 35, // Cannot access authorized users file
-  IECNTLKA = 36, // Control connection Keepalive period should be larger than
-                 // the full retry period (interval * count)
-  IEMAXSERVERTESTDURATIONEXCEEDED =
-      37,         // Client's duration exceeds server's maximum duration
-  IEUNITVAL = 38, // Invalid unit value or suffix
-  /* Test errors */
-  IENEWTEST = 100,  // Unable to create a new test (check perror)
-  IEINITTEST = 101, // Test initialization failed (check perror)
-  IELISTEN = 102,   // Unable to listen for connections (check perror)
-  IECONNECT =
-      103, // Unable to connect to server (check herror/perror) [from netdial]
-  IEACCEPT =
-      104, // Unable to accept connection from client (check herror/perror)
-  IESENDCOOKIE = 105, // Unable to send cookie to server (check perror)
-  IERECVCOOKIE = 106, // Unable to receive cookie from client (check perror)
-  IECTRLWRITE = 107,  // Unable to write to the control socket (check perror)
-  IECTRLREAD = 108,   // Unable to read from the control socket (check perror)
-  IECTRLCLOSE = 109,  // Control socket has closed unexpectedly
-  IEMESSAGE = 110,    // Received an unknown message
-  IESENDMESSAGE =
-      111, // Unable to send control message to client/server (check perror)
-  IERECVMESSAGE = 112, // Unable to receive control message from client/server
-                       // (check perror)
-  IESENDPARAMS = 113,  // Unable to send parameters to server (check perror)
-  IERECVPARAMS = 114, // Unable to receive parameters from client (check perror)
-  IEPACKAGERESULTS = 115, // Unable to package results (check perror)
-  IESENDRESULTS = 116, // Unable to send results to client/server (check perror)
-  IERECVRESULTS =
-      117,        // Unable to receive results from client/server (check perror)
-  IESELECT = 118, // Select failed (check perror)
-  IECLIENTTERM = 119,    // The client has terminated
-  IESERVERTERM = 120,    // The server has terminated
-  IEACCESSDENIED = 121,  // The server is busy running a test. Try again later.
-  IESETNODELAY = 122,    // Unable to set TCP/SCTP NODELAY (check perror)
-  IESETMSS = 123,        // Unable to set TCP/SCTP MSS (check perror)
-  IESETBUF = 124,        // Unable to set socket buffer size (check perror)
-  IESETTOS = 125,        // Unable to set IP TOS (check perror)
-  IESETCOS = 126,        // Unable to set IPv6 traffic class (check perror)
-  IESETFLOW = 127,       // Unable to set IPv6 flow label
-  IEREUSEADDR = 128,     // Unable to set reuse address on socket (check perror)
-  IENONBLOCKING = 129,   // Unable to set socket to non-blocking (check perror)
-  IESETWINDOWSIZE = 130, // Unable to set socket window size (check perror)
-  IEPROTOCOL = 131,      // Protocol does not exist
-  IEAFFINITY = 132,      // Unable to set CPU affinity (check perror)
-  IEDAEMON = 133,        // Unable to become a daemon process
-  IESETCONGESTION = 134, // Unable to set TCP_CONGESTION
-  IEPIDFILE = 135,       // Unable to write PID file
-  IEV6ONLY = 136,        // Unable to set/unset IPV6_V6ONLY (check perror)
-  IESETSCTPDISABLEFRAG = 137, // Unable to set SCTP Fragmentation (check perror)
-  IESETSCTPNSTREAM =
-      138,              //  Unable to set SCTP number of streams (check perror)
-  IESETSCTPBINDX = 139, // Unable to process sctp_bindx() parameters
-  IESETPACING = 140,    // Unable to set socket pacing rate
-  IESETBUF2 = 141, // Socket buffer size incorrect (written value != read value)
-  IEAUTHTEST = 142, // Test authorization failed
-  IEBINDDEV =
-      143,       // Unable to bind-to-device (check perror, maybe permissions?)
-  IENOMSG = 144, // No message was received for NO_MSG_RCVD_TIMEOUT time period
-  IESETDONTFRAGMENT = 145,  // Unable to set IP Do-Not-Fragment
-  IEBINDDEVNOSUPPORT = 146, // `ip%%dev` is not supported as system does not
-                            // support bind to device
-  IEHOSTDEV = 147, // host device name (ip%%<dev>) is supported (and required)
-                   // only for IPv6 link-local address
-  IESETUSERTIMEOUT = 148, // Unable to set TCP USER_TIMEOUT (check perror)
-  IEPTHREADCREATE = 150,  // Unable to create thread (check perror)
-  IEPTHREADCANCEL = 151,  // Unable to cancel thread (check perror)
-  IEPTHREADJOIN = 152,    // Unable to join thread (check perror)
-  IEPTHREADATTRINIT =
-      153, // Unable to initialize thread attribute (check perror)
-  IEPTHREADATTRDESTROY =
-      154,           // Unable to destroy thread attribute (check perror)
-  IESETCNTLKA = 155, // Unable to set socket keepalive (SO_KEEPALIVE) option
-  IESETCNTLKAKEEPIDLE =
-      156, // Unable to set socket keepalive TCP period (TCP_KEEPIDLE) option
-  IESETCNTLKAINTERVAL = 157, // Unable to set/get socket keepalive TCP retry
-                             // interval (TCP_KEEPINTVL) option
-  IESETCNTLKACOUNT = 158,    // Unable to set/get socket keepalive TCP number of
-                             // retries (TCP_KEEPCNT) option
-  IEPTHREADSIGMASK =
-      159, // Unable to initialize sub thread signal mask (check perror)
-  IESERVERTESTDURATIONEXPIRED = 160, // Server test duration expired
-  /* Stream errors */
-  IECREATESTREAM = 200,  // Unable to create a new stream (check herror/perror)
-  IEINITSTREAM = 201,    // Unable to initialize stream (check herror/perror)
-  IESTREAMLISTEN = 202,  // Unable to start stream listener (check perror)
-  IESTREAMCONNECT = 203, // Unable to connect stream (check herror/perror)
-  IESTREAMACCEPT = 204,  // Unable to accept stream connection (check perror)
-  IESTREAMWRITE = 205,   // Unable to write to stream socket (check perror)
-  IESTREAMREAD = 206,    // Unable to read from stream (check perror)
-  IESTREAMCLOSE = 207,   // Stream has closed unexpectedly
-  IESTREAMID = 208,      // Stream has invalid ID
-  /* Timer errors */
-  IENEWTIMER = 300,    // Unable to create new timer (check perror)
-  IEUPDATETIMER = 301, // Unable to update timer (check perror)
-  /* Custom errors */
-  IEINTERRUPT = 999, // User Interrupt
+    IENONE = 0,             // No error
+    /* Parameter errors */
+    IESERVCLIENT = 1,       // Iperf cannot be both server and client
+    IENOROLE = 2,           // Iperf must either be a client (-c) or server (-s)
+    IESERVERONLY = 3,       // This option is server only
+    IECLIENTONLY = 4,       // This option is client only
+    IEDURATION = 5,         // test duration too long. Maximum value = %dMAX_TIME
+    IENUMSTREAMS = 6,       // Number of parallel streams too large. Maximum value = %dMAX_STREAMS
+    IEBLOCKSIZE = 7,        // Block size too large. Maximum value = %dMAX_BLOCKSIZE
+    IEBUFSIZE = 8,          // Socket buffer size too large. Maximum value = %dMAX_TCP_BUFFER
+    IEINTERVAL = 9,         // Invalid report interval (min = %gMIN_INTERVAL, max = %gMAX_INTERVAL seconds)
+    IEMSS = 10,             // MSS too large. Maximum value = %dMAX_MSS
+    IENOSENDFILE = 11,      // This OS does not support sendfile
+    IEOMIT = 12,            // Bogus value for --omit
+    IEUNIMP = 13,           // Not implemented yet
+    IEFILE = 14,            // -F file couldn't be opened
+    IEBURST = 15,           // Invalid burst count. Maximum value = %dMAX_BURST
+    IEENDCONDITIONS = 16,   // Only one test end condition (-t, -n, -k) may be specified
+    IELOGFILE = 17,	    // Can't open log file
+    IENOSCTP = 18,	    // No SCTP support available
+    IEBIND = 19,	    // UNUSED:  Local port specified with no local bind option
+    IEUDPBLOCKSIZE = 20,    // Block size invalid
+    IEBADTOS = 21,	    // Bad TOS value
+    IESETCLIENTAUTH = 22,   // Bad configuration of client authentication
+    IESETSERVERAUTH = 23,   // Bad configuration of server authentication
+    IEBADFORMAT = 24,	    // Bad format argument to -f
+    IEREVERSEBIDIR = 25,    // Iperf cannot be both reverse and bidirectional
+    IEBADPORT = 26,	    // Bad port number
+    IETOTALRATE = 27,       // Total required bandwidth is larger than server's limit
+    IETOTALINTERVAL = 28,   // Invalid time interval for calculating average data rate
+    IESKEWTHRESHOLD = 29,   // Invalid value specified as skew threshold
+    IEIDLETIMEOUT = 30,     // Invalid value specified as idle state timeout
+    IERCVTIMEOUT = 31,      // Illegal message receive timeout
+    IERVRSONLYRCVTIMEOUT = 32,  // Client receive timeout is valid only in reverse mode
+    IESNDTIMEOUT = 33,      // Illegal message send timeout
+    IEUDPFILETRANSFER = 34, // Cannot transfer file using UDP
+    IESERVERAUTHUSERS = 35,  // Cannot access authorized users file
+    IECNTLKA = 36,          // Control connection Keepalive period should be larger than the full retry period (interval * count)
+    IEMAXSERVERTESTDURATIONEXCEEDED = 37, // Client's duration exceeds server's maximum duration
+    IEUNITVAL = 38,         // Invalid unit value or suffix
+    IERVRSONLYSKIPRXCOPY = 39, // This OS does not support --skip-rx-copy
+    IEBADDSCP = 40,         // Bad DSCP value
+    /* Test errors */
+    IENEWTEST = 100,        // Unable to create a new test (check perror)
+    IEINITTEST = 101,       // Test initialization failed (check perror)
+    IELISTEN = 102,         // Unable to listen for connections (check perror)
+    IECONNECT = 103,        // Unable to connect to server (check herror/perror) [from netdial]
+    IEACCEPT = 104,         // Unable to accept connection from client (check herror/perror)
+    IESENDCOOKIE = 105,     // Unable to send cookie to server (check perror)
+    IERECVCOOKIE = 106,     // Unable to receive cookie from client (check perror)
+    IECTRLWRITE = 107,      // Unable to write to the control socket (check perror)
+    IECTRLREAD = 108,       // Unable to read from the control socket (check perror)
+    IECTRLCLOSE = 109,      // Control socket has closed unexpectedly
+    IEMESSAGE = 110,        // Received an unknown message
+    IESENDMESSAGE = 111,    // Unable to send control message to client/server (check perror)
+    IERECVMESSAGE = 112,    // Unable to receive control message from client/server (check perror)
+    IESENDPARAMS = 113,     // Unable to send parameters to server (check perror)
+    IERECVPARAMS = 114,     // Unable to receive parameters from client (check perror)
+    IEPACKAGERESULTS = 115, // Unable to package results (check perror)
+    IESENDRESULTS = 116,    // Unable to send results to client/server (check perror)
+    IERECVRESULTS = 117,    // Unable to receive results from client/server (check perror)
+    IESELECT = 118,         // Select failed (check perror)
+    IECLIENTTERM = 119,     // The client has terminated
+    IESERVERTERM = 120,     // The server has terminated
+    IEACCESSDENIED = 121,   // The server is busy running a test. Try again later.
+    IESETNODELAY = 122,     // Unable to set TCP/SCTP NODELAY (check perror)
+    IESETMSS = 123,         // Unable to set TCP/SCTP MSS (check perror)
+    IESETBUF = 124,         // Unable to set socket buffer size (check perror)
+    IESETTOS = 125,         // Unable to set IP TOS (check perror)
+    IESETCOS = 126,         // Unable to set IPv6 traffic class (check perror)
+    IESETFLOW = 127,        // Unable to set IPv6 flow label
+    IEREUSEADDR = 128,      // Unable to set reuse address on socket (check perror)
+    IENONBLOCKING = 129,    // Unable to set socket to non-blocking (check perror)
+    IESETWINDOWSIZE = 130,  // Unable to set socket window size (check perror)
+    IEPROTOCOL = 131,       // Protocol does not exist
+    IEAFFINITY = 132,       // Unable to set CPU affinity (check perror)
+    IEDAEMON = 133,	    // Unable to become a daemon process
+    IESETCONGESTION = 134,  // Unable to set TCP_CONGESTION
+    IEPIDFILE = 135,	    // Unable to write PID file
+    IEV6ONLY = 136,  	    // Unable to set/unset IPV6_V6ONLY (check perror)
+    IESETSCTPDISABLEFRAG = 137, // Unable to set SCTP Fragmentation (check perror)
+    IESETSCTPNSTREAM= 138,  //  Unable to set SCTP number of streams (check perror)
+    IESETSCTPBINDX= 139,    // Unable to process sctp_bindx() parameters
+    IESETPACING= 140,       // Unable to set socket pacing rate
+    IESETBUF2= 141,	    // Socket buffer size incorrect (written value != read value)
+    IEAUTHTEST = 142,       // Test authorization failed
+    IEBINDDEV = 143,        // Unable to bind-to-device (check perror, maybe permissions?)
+    IENOMSG = 144,          // No message was received for NO_MSG_RCVD_TIMEOUT time period
+    IESETDONTFRAGMENT = 145,   // Unable to set IP Do-Not-Fragment
+    IEBINDDEVNOSUPPORT = 146,  // `ip%%dev` is not supported as system does not support bind to device
+    IEHOSTDEV = 147,        // host device name (ip%%<dev>) is supported (and required) only for IPv6 link-local address
+    IESETUSERTIMEOUT = 148, // Unable to set TCP USER_TIMEOUT (check perror)
+    IEPTHREADCREATE=150,	// Unable to create thread (check perror)
+    IEPTHREADCANCEL=151,        // Unable to cancel thread (check perror)
+    IEPTHREADJOIN=152,		// Unable to join thread (check perror)
+    IEPTHREADATTRINIT=153,      // Unable to initialize thread attribute (check perror)
+    IEPTHREADATTRDESTROY=154,      // Unable to destroy thread attribute (check perror)
+    IESETCNTLKA = 155,         // Unable to set socket keepalive (SO_KEEPALIVE) option
+    IESETCNTLKAKEEPIDLE = 156, // Unable to set socket keepalive TCP period (TCP_KEEPIDLE) option
+    IESETCNTLKAINTERVAL = 157, // Unable to set/get socket keepalive TCP retry interval (TCP_KEEPINTVL) option
+    IESETCNTLKACOUNT = 158,    // Unable to set/get socket keepalive TCP number of retries (TCP_KEEPCNT) option
+    IEPTHREADSIGMASK=159,      // Unable to initialize sub thread signal mask (check perror)
+    IESERVERTESTDURATIONEXPIRED = 160, // Server test duration expired
+    /* Stream errors */
+    IECREATESTREAM = 200,   // Unable to create a new stream (check herror/perror)
+    IEINITSTREAM = 201,     // Unable to initialize stream (check herror/perror)
+    IESTREAMLISTEN = 202,   // Unable to start stream listener (check perror)
+    IESTREAMCONNECT = 203,  // Unable to connect stream (check herror/perror)
+    IESTREAMACCEPT = 204,   // Unable to accept stream connection (check perror)
+    IESTREAMWRITE = 205,    // Unable to write to stream socket (check perror)
+    IESTREAMREAD = 206,     // Unable to read from stream (check perror)
+    IESTREAMCLOSE = 207,    // Stream has closed unexpectedly
+    IESTREAMID = 208,       // Stream has invalid ID
+    /* Timer errors */
+    IENEWTIMER = 300,       // Unable to create new timer (check perror)
+    IEUPDATETIMER = 301,    // Unable to update timer (check perror)
+    /* Custom errors */
+    IEINTERRUPT = 999, // User Interrupt
 };
 
 #ifdef __cplusplus
