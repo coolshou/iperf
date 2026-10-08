@@ -3454,6 +3454,7 @@ iperf_defaults(struct iperf_test *testp)
 
     testp->stats_callback = iperf_stats_callback;
     testp->reporter_callback = iperf_reporter_callback;
+    testp->throughput_report_callback = NULL;
 
     testp->stats_interval = testp->reporter_interval = 1;
     testp->num_streams = 1;
@@ -3698,6 +3699,7 @@ iperf_free_test(struct iperf_test *test)
     // test->streams = NULL;
     test->stats_callback = NULL;
     test->reporter_callback = NULL;
+    test->throughput_report_callback = NULL;
     free(test);
 }
 
@@ -4070,7 +4072,7 @@ iperf_print_intermediate(struct iperf_test *test)
      * results around unless we're the server and the client requested the server output.
      *
      * This avoids unneeded memory build up for long sessions.
-     * 
+     *
      * The user can still opt in for all measurement data via the --json-stream-full-output option.
      */
     discard_json = test->json_stream == 1 && !test->json_stream_full_output && !(test->role == 's' && test->get_server_output);
@@ -4678,7 +4680,7 @@ iperf_print_results(struct iperf_test *test)
                      * ambiguities between the sender and receiver.
                      */
                     cJSON_AddItemToObject(test->json_end, sum_name, iperf_json_printf("start: %f  end: %f  seconds: %f  bytes: %d  bits_per_second: %f  jitter_ms: %f  lost_packets: %d  packets: %d  lost_percent: %f sender: %b", (double) start_time, (double) receiver_time, (double) receiver_time, (int64_t) total_sent, bandwidth * 8, (double) avg_jitter * 1000.0, (int64_t) lost_packets, (int64_t) total_packets, (double) lost_percent, stream_must_be_sender));
-                    
+
                     double sent_bandwidth = sender_time > 0 ? ((double) total_sent * 8 / sender_time) : 0.0;
                     double recv_bandwidth = receiver_time > 0 ? ((double) total_received * 8 / receiver_time) : 0.0;
                     /*
@@ -4802,14 +4804,27 @@ iperf_reporter_callback(struct iperf_test *test)
         case STREAM_RUNNING:
             /* print interval results for each stream */
             iperf_print_intermediate(test);
+            /* Fire the callback on every interval */
+            if (test->throughput_report_callback) {
+              test->throughput_report_callback(test);
+            }
             break;
         case TEST_END:
         case DISPLAY_RESULTS:
             iperf_print_intermediate(test);
             iperf_print_results(test);
+            /* Fire the callback one last time for the final overall summary metrics */
+            if (test->throughput_report_callback) {
+              test->throughput_report_callback(test);
+            }
             break;
     }
 
+}
+void
+iperf_set_throughput_report_callback(struct iperf_test *ipt,
+                                          iperf_throughput_report_cb callback) {
+  ipt->throughput_report_callback = callback;
 }
 
 /**

@@ -294,6 +294,11 @@ void iperf_stats_callback(struct iperf_test *test);
  *
  */
 void iperf_reporter_callback(struct iperf_test *test);
+/* Callback type definition */
+typedef void (*iperf_throughput_report_cb)(struct iperf_test *test);
+/* Setter function declaration */
+void iperf_set_throughput_report_callback(struct iperf_test *ipt,
+                                          iperf_throughput_report_cb callback);
 
 /* Callback type definition */
 typedef void (*iperf_throughput_report_cb)(struct iperf_test *test);
