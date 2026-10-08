@@ -453,6 +453,12 @@ iperf_set_verbose(struct iperf_test *ipt, int verbose)
 }
 
 void
+iperf_set_test_forceflush(struct iperf_test* ipt)
+{
+    ipt->forceflush = 1;
+}
+
+void
 iperf_set_control_socket(struct iperf_test *ipt, int ctrl_sck)
 {
     ipt->ctrl_sck = ctrl_sck;
