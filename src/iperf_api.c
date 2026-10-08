@@ -3397,7 +3397,9 @@ iperf_new_test()
 
     /* By default all output goes to stdout */
     test->outfile = stdout;
-
+    if (pipe(test->stop_pipe) < 0) {
+        perror("iperf stop_pipe");
+    }
     return test;
 }
 
@@ -3694,6 +3696,9 @@ iperf_free_test(struct iperf_test *test)
     /* Free interval's traffic array for average rate calculations */
     if (test->bitrate_limit_intervals_traffic_bytes != NULL)
         free(test->bitrate_limit_intervals_traffic_bytes);
+
+    close(test->stop_pipe[0]);
+    close(test->stop_pipe[1]);
 
     /* XXX: Why are we setting these values to NULL? */
     // test->streams = NULL;
