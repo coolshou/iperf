@@ -464,8 +464,7 @@ struct iperf_test {
 };
 
 /* default settings */
-#define PORT                                                                   \
-  5201 /* default port to listen on (don't use the same port as iperf2) */
+#define PORT 5201 /* default port to listen on (don't use the same port as iperf2) */
 #define uS_TO_NS 1000
 #define mS_TO_US 1000
 #define SEC_TO_mS 1000
@@ -513,16 +512,14 @@ extern int gerror; /* error value from getaddrinfo(3), for use in internal error
 #else
 #define UDP_CONNECT_MSG 0x36373839   // "6789" - legacy value was 123456789
 #define UDP_CONNECT_REPLY 0x39383736 // "9876" - legacy value was 987654321
-#define LEGACY_UDP_CONNECT_REPLY                                               \
-  987654321 // Old servers may still reply with the legacy value
+#define LEGACY_UDP_CONNECT_REPLY 987654321 // Old servers may still reply with the legacy value
 #endif
 
 /* In Reverse mode, maximum number of packets to wait for "accept" response - to
  * handle out of order packets */
 #define MAX_REVERSE_OUT_OF_ORDER_PACKETS 2
 
-#define GSO_MAX_DG_IN_BF                                                       \
-  (1 << 7UL) // 128 - the Linux Kernel limit hardcoded as `UDP_MAX_SEGMENTS (1
+#define GSO_MAX_DG_IN_BF (1 << 7UL) // 128 - the Linux Kernel limit hardcoded as `UDP_MAX_SEGMENTS (1
              // << 7UL)` in `udpgso.c`
 #define GSO_BF_MAX_SIZE MAX_UDP_BLOCKSIZE
 #define GRO_BF_MAX_SIZE MAX_UDP_BLOCKSIZE
