@@ -571,6 +571,8 @@ iperf_strerror(int int_errno)
             break;
         case IEINTERRUPT:
             snprintf(errstr, len, "Test interrupted by user");
+            perr = 1;
+            break;
         default:
             snprintf(errstr, len, "int_errno=%d", int_errno);
             perr = 1;
